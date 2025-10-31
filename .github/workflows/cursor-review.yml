@@ -1,0 +1,185 @@
+name: Cursor Code Review
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  cursor-review:
+    if: github.event.label.name == 'cursor-review'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Cursor CLI
+        run: |
+          curl -fsSL https://cursor.sh/install | bash
+          echo "$HOME/.cursor/bin" >> $GITHUB_PATH
+          cursor --version
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            **/*.js
+            **/*.jsx
+            **/*.ts
+            **/*.tsx
+            **/*.json
+            **/*.yml
+            **/*.yaml
+            **/*.md
+            **/*.mjs
+            **/*.css
+
+      - name: Review PR with Cursor Agent
+        id: review
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: |
+          # PR情報を取得
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          OWNER=${{ github.repository_owner }}
+          REPO=${{ github.event.repository.name }}
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+          PR_AUTHOR="${{ github.event.pull_request.user.login }}"
+          BASE_REF="${{ github.event.pull_request.base.ref }}"
+          HEAD_REF="${{ github.event.pull_request.head.ref }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          
+          # 変更ファイルリストを取得
+          CHANGED_FILES="${{ steps.changed-files.outputs.all_changed_files }}"
+          
+          # 差分を取得
+          echo "📝 変更差分を取得中..."
+          PR_DIFF=$(git diff origin/${BASE_REF}...HEAD || git diff ${BASE_REF}...HEAD)
+          
+          # レビュープロンプトを作成
+          REVIEW_PROMPT="以下のGitHub Pull Requestをコードレビューしてください。
+
+          **Pull Request情報:**
+          - URL: ${PR_URL}
+          - タイトル: ${PR_TITLE}
+          - 説明: ${PR_BODY}
+          - 作成者: ${PR_AUTHOR}
+          - ベースブランチ: ${BASE_REF}
+          - ヘッドブランチ: ${HEAD_REF}
+          - 変更ファイル: ${CHANGED_FILES}
+          
+          **変更内容の差分:**
+          \`\`\`diff
+          ${PR_DIFF}
+          \`\`\`
+          
+          **レビューの観点:**
+          1. **コード品質**: 可読性、保守性、ベストプラクティスの遵守
+          2. **バグ・エラー**: 潜在的なバグ、エラーハンドリング、エッジケース
+          3. **パフォーマンス**: パフォーマンスの問題、不要な再レンダリング、メモリリーク
+          4. **セキュリティ**: セキュリティリスク、データ漏洩、XSS、CSRF対策
+          5. **テスト**: テストの必要性、テストカバレッジ
+          6. **設計**: アーキテクチャ、設計パターン、責任分離
+          7. **ドキュメント**: コメント、README、型定義の必要性
+          
+          **技術スタック:**
+          - React 19
+          - Vite
+          - Node.js/Express
+          - Web Speech API
+          - GitHub OAuth
+          
+          Pull Requestの差分を詳細にレビューして、以下の形式で具体的で建設的なフィードバックを日本語で提供してください:
+          
+          ## 🤖 Cursor AI コードレビュー
+          
+          ### ✅ 良い点
+          
+          ### ⚠️ 改善提案
+          
+          ### 🐛 バグ・問題
+          
+          ### 🔒 セキュリティ
+          
+          ### 📝 その他
+          
+          各観点について具体的で実用的なフィードバックを提供してください。"
+          
+          echo "🤖 Cursorエージェントでレビューを実行中..."
+          
+          # Cursorエージェントでレビューを実行
+          if [ -z "$CURSOR_API_KEY" ]; then
+            echo "❌ エラー: CURSOR_API_KEYが設定されていません"
+            echo "リポジトリのSettings > Secrets and variables > ActionsでCURSOR_API_KEYを設定してください"
+            exit 1
+          fi
+          
+          # 出力ファイルを作成
+          OUTPUT_FILE="review-cursor-${PR_NUMBER}.md"
+          
+          # Cursor CLIでレビューを実行
+          echo "Cursor CLIエージェントを起動します..."
+          cursor agent "$REVIEW_PROMPT" > "$OUTPUT_FILE" 2>&1 || {
+            echo "⚠️ Cursorエージェントの実行中にエラーが発生しました"
+            cat "$OUTPUT_FILE"
+            exit 1
+          }
+          
+          # レビュー結果を確認
+          if [ -f "$OUTPUT_FILE" ] && [ -s "$OUTPUT_FILE" ]; then
+            REVIEW_TEXT=$(cat "$OUTPUT_FILE")
+            echo "✅ レビューが完了しました"
+            echo "レビュー結果の先頭500文字:"
+            echo "$REVIEW_TEXT" | head -c 500
+            echo ""
+            echo "$REVIEW_TEXT" > review-result.txt
+          else
+            echo "⚠️ レビュー結果が空でした"
+            exit 1
+          fi
+
+      - name: Post review as PR comment
+        uses: actions/github-script@v7
+        if: steps.review.outcome == 'success'
+        with:
+          script: |
+            const fs = require('fs');
+            const pr = context.payload.pull_request;
+            const prNumber = pr.number;
+            
+            // レビュー結果を読み込む
+            const reviewText = fs.readFileSync('review-result.txt', 'utf8');
+            
+            // PRコメントとして投稿
+            const reviewBody = `## 🤖 Cursor AI コードレビュー
+
+            ${reviewText}
+
+            ---
+            *このレビューはCursor CLIエージェントにより自動生成されました*
+            *ラベル \`cursor-review\` を外すと、このレビューは再実行されません*`;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: reviewBody
+            });
+            
+            console.log('✅ レビューコメントを投稿しました');
+
