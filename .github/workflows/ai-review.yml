@@ -1,0 +1,180 @@
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ai-review:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v44
+        with:
+          files: |
+            **/*.js
+            **/*.jsx
+            **/*.ts
+            **/*.tsx
+            **/*.json
+            **/*.yml
+            **/*.yaml
+            **/*.md
+            **/*.mjs
+            **/*.css
+
+      - name: Review PR with AI
+        id: review
+        uses: actions/github-script@v7
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+            
+            // Get PR details
+            const pr = context.payload.pull_request;
+            const prNumber = pr.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            // Get changed files
+            const changedFiles = '${{ steps.changed-files.outputs.all_changed_files }}'.split(' ');
+            const validFiles = changedFiles.filter(f => f && f.length > 0);
+            
+            if (validFiles.length === 0) {
+              console.log('No files changed');
+              return;
+            }
+            
+            // Get file diffs
+            let diffContent = '';
+            
+            for (const file of validFiles) {
+              try {
+                const diff = execSync(`git diff origin/${context.payload.pull_request.base.ref}...HEAD -- "${file}"`, { encoding: 'utf-8' });
+                if (diff.trim()) {
+                  diffContent += `\n\n=== File: ${file} ===\n${diff}`;
+                }
+              } catch (error) {
+                console.log(`Error getting diff for ${file}: ${error.message}`);
+              }
+            }
+            
+            if (!diffContent) {
+              console.log('No meaningful diffs found');
+              return;
+            }
+            
+            // Prepare review prompt
+            const reviewPrompt = `あなたは経験豊富なコードレビュアーです。以下のPull Requestの変更をレビューしてください。
+
+# Pull Request情報
+- タイトル: ${pr.title}
+- 説明: ${pr.body || '説明なし'}
+- 作成者: ${pr.user.login}
+
+# 変更内容
+${diffContent}
+
+# レビューの観点
+1. **コード品質**: 可読性、保守性、ベストプラクティスの遵守
+2. **バグ・エラー**: 潜在的なバグ、エラーハンドリング、エッジケース
+3. **パフォーマンス**: パフォーマンスの問題、不要な再レンダリング、メモリリーク
+4. **セキュリティ**: セキュリティリスク、データ漏洩、XSS、CSRF対策
+5. **テスト**: テストの必要性、テストカバレッジ
+6. **設計**: アーキテクチャ、設計パターン、責任分離
+7. **ドキュメント**: コメント、README、型定義の必要性
+
+# 技術スタック
+- React 19
+- Vite
+- Node.js/Express
+- Web Speech API
+- GitHub OAuth
+
+レビュー結果は以下の形式で返してください:
+- **良い点**: 
+- **改善提案**: 
+- **バグ・問題**: 
+- **セキュリティ**: 
+- **その他**: 
+
+各観点について具体的で建設的なフィードバックを提供してください。`;
+
+            const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+            
+            if (!OPENAI_API_KEY) {
+              console.log('OPENAI_API_KEY is not set. Skipping AI review.');
+              return;
+            }
+            
+            try {
+              // Use built-in fetch (available in Node.js 18+)
+              const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${OPENAI_API_KEY}`
+                },
+                body: JSON.stringify({
+                  model: 'gpt-4o',
+                  messages: [
+                    {
+                      role: 'system',
+                      content: 'あなたは経験豊富なシニアエンジニアで、コードレビューを専門としています。建設的で実用的なフィードバックを日本語で提供してください。'
+                    },
+                    {
+                      role: 'user',
+                      content: reviewPrompt
+                    }
+                  ],
+                  temperature: 0.3,
+                  max_tokens: 2000
+                })
+              });
+              
+              if (!response.ok) {
+                const error = await response.text();
+                console.log(`OpenAI API error: ${response.status} - ${error}`);
+                return;
+              }
+              
+              const data = await response.json();
+              const reviewText = data.choices[0].message.content;
+              
+              // Post review as PR comment using the github object provided by actions/github-script
+              await github.rest.issues.createComment({
+                owner: owner,
+                repo: repo,
+                issue_number: prNumber,
+                body: `## 🤖 AI コードレビュー\n\n${reviewText}\n\n---\n*このレビューは自動生成されました*`
+              });
+              
+              console.log('AI review posted successfully');
+            } catch (error) {
+              console.log(`Error during AI review: ${error.message}`);
+              // Don't fail the workflow if AI review fails
+            }
+
