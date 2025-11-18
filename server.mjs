@@ -11,7 +11,7 @@ app.use(express.json());
 // GitHub OAuth設定（環境変数から取得）
 const CLIENT_ID = process.env.GITHUB_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || '';
-const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:5173';
+const REDIRECT_URI = process.env.REDIRECT_URI || 'https://vocal-zettelkasten.vercel.app/';
 
 // OAuth認証開始エンドポイント
 app.get('/api/auth/github', (req, res) => {
