@@ -1,88 +1,4 @@
 import { useRef, useState, useEffect } from 'react'
-import './App.css'
-
-// レイアウト設定コンポーネント
-function LayoutSettings({ layoutMode, onLayoutChange }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const layoutOptions = [
-    { value: 'vertical', label: '縦並び', icon: '📐' },
-    { value: 'horizontal', label: '横並び', icon: '↔️' },
-    { value: 'grid', label: 'グリッド', icon: '⊞' },
-    { value: 'sidebar', label: 'サイドバー', icon: '▤' },
-  ];
-
-  return (
-    <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 1000 }}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          background: '#fff',
-          border: '2px solid #e2e8f0',
-          borderRadius: '8px',
-          padding: '0.6em 1em',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5em',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          fontSize: '0.9rem',
-          fontWeight: '500',
-          color: '#334155',
-        }}
-        title="レイアウト設定"
-      >
-        <span>⚙️</span>
-        <span>レイアウト</span>
-      </button>
-      {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: '45px',
-          right: '0',
-          background: '#fff',
-          border: '2px solid #e2e8f0',
-          borderRadius: '8px',
-          padding: '1em',
-          minWidth: '200px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        }}>
-          <div style={{ marginBottom: '0.8em', fontSize: '0.9rem', fontWeight: '600', color: '#334155' }}>
-            レイアウトモード
-          </div>
-          {layoutOptions.map((option) => (
-            <button
-              key={option.value}
-              onClick={() => {
-                onLayoutChange(option.value);
-                setIsOpen(false);
-              }}
-              style={{
-                width: '100%',
-                padding: '0.7em',
-                marginBottom: '0.5em',
-                background: layoutMode === option.value ? '#3b82f6' : '#f1f5f9',
-                color: layoutMode === option.value ? '#fff' : '#334155',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5em',
-                fontSize: '0.9rem',
-                transition: 'all 0.2s',
-              }}
-            >
-              <span>{option.icon}</span>
-              <span>{option.label}</span>
-              {layoutMode === option.value && <span style={{ marginLeft: 'auto' }}>✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function GithubPush({ transcript }) {
   const [token, setToken] = useState('');
@@ -403,49 +319,38 @@ function GithubPush({ transcript }) {
   };
 
   return (
-    <div style={{ marginTop: '2.5rem', background: '#f3f4f6', borderRadius: '8px', padding: '1.2em', width: '340px' }}>
+    <div className="bg-gray-100 rounded-lg p-5 w-full max-w-sm border-2 border-gray-200 shadow-sm">
       <button 
         onClick={handlePush} 
         disabled={loading || (token && !transcript) || isAuthenticating} 
-        style={{ 
-          width: '100%', 
-          background: '#24292f', 
-          color: '#fff', 
-          fontWeight: 'bold', 
-          border: 'none', 
-          borderRadius: '6px', 
-          padding: '0.7em', 
-          cursor: (token ? !transcript : false) || isAuthenticating ? 'not-allowed' : 'pointer', 
-          marginBottom: '0.5em',
-          opacity: (token && !transcript) || isAuthenticating ? 0.6 : 1
-        }}
+        className={`w-full font-bold border-none rounded-md py-2.5 mb-2 transition-all ${
+          (token && !transcript) || isAuthenticating
+            ? 'bg-gray-400 cursor-not-allowed opacity-60'
+            : 'bg-gray-800 text-white cursor-pointer hover:bg-gray-900'
+        }`}
       >
         {loading ? '保存中...' : isAuthenticating ? 'ログイン中...' : token ? 'GitHubに保存' : 'GitHubに保存（未ログイン）'}
       </button>
-      <div style={{ color: status.startsWith('エラー') ? '#f87171' : '#059669', minHeight: '1.5em', fontSize: '0.9em' }}>{status}</div>
+      <div className={`min-h-[1.5em] text-sm ${
+        status.startsWith('エラー') ? 'text-red-500' : 'text-green-600'
+      }`}>
+        {status}
+      </div>
       {token && user && (
-        <div style={{ fontSize: '0.85em', color: '#666', marginTop: '0.5em', display: 'flex', alignItems: 'center', gap: '0.5em' }}>
+        <div className="text-xs text-gray-600 mt-2 flex items-center gap-2">
           {user.avatar_url && (
-            <img src={user.avatar_url} alt={user.login} style={{ width: '16px', height: '16px', borderRadius: '50%' }} />
+            <img src={user.avatar_url} alt={user.login} className="w-4 h-4 rounded-full" />
           )}
           <span>{user.name || user.login} としてログイン中</span>
           <button
             onClick={handleLogout}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#f87171',
-              cursor: 'pointer',
-              fontSize: '0.85em',
-              textDecoration: 'underline',
-              marginLeft: 'auto'
-            }}
+            className="bg-transparent border-none text-red-500 cursor-pointer text-xs underline ml-auto"
           >
             ログアウト
           </button>
         </div>
       )}
-      <div style={{ fontSize: '0.9em', color: '#888', marginTop: '0.5em' }}>
+      <div className="text-sm text-gray-500 mt-2">
         ※ログイン情報はローカルストレージに保存されます。リポジトリは自動設定されます。
       </div>
     </div>
@@ -454,50 +359,36 @@ function GithubPush({ transcript }) {
 
 function TranscriptionInput({ transcript, setTranscript, isRecording, startRecording, stopRecording, handleCopy, copied }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div className="flex flex-col items-center">
       <button
         onClick={isRecording ? stopRecording : startRecording}
-        style={{
-          background: isRecording ? '#f87171' : '#60a5fa',
-          color: '#fff',
-          fontWeight: 'bold',
-          fontSize: '1.1rem',
-          border: 'none',
-          borderRadius: '9999px',
-          padding: '0.8em 2em',
-          cursor: 'pointer',
-          marginBottom: '1.5rem',
-          transition: 'background 0.2s',
-        }}
+        className={`font-bold text-lg border-none rounded-full px-8 py-3 cursor-pointer mb-6 transition-all ${
+          isRecording 
+            ? 'bg-red-500 text-white hover:bg-red-600' 
+            : 'bg-blue-400 text-white hover:bg-blue-500'
+        }`}
       >
         {isRecording ? '録音停止' : '音声入力'}
       </button>
-      <div style={{ position: 'relative', width: '100%', maxWidth: '340px', marginBottom: '0.7rem' }}>
+      <div className="relative w-full max-w-sm mb-3">
         <textarea
           value={transcript}
           readOnly
           rows={6}
-          style={{ width: '100%', fontSize: '1.1rem', padding: '1em', borderRadius: '8px', border: '1px solid #ddd', resize: 'vertical', background: '#fff', color: '#222', boxSizing: 'border-box' }}
+          className="w-full text-lg p-4 rounded-lg border border-gray-300 resize-y bg-white text-gray-800 box-border"
           placeholder="ここに文字起こし結果が表示されます"
         />
         <button
           onClick={handleCopy}
           disabled={!transcript}
-          style={{
-            position: 'absolute',
-            top: '8px',
-            right: '12px',
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: transcript ? 'pointer' : 'not-allowed',
-            opacity: transcript ? 1 : 0.5,
-          }}
+          className={`absolute top-2 right-3 bg-transparent border-none p-0 cursor-${
+            transcript ? 'pointer' : 'not-allowed'
+          } ${transcript ? 'opacity-100' : 'opacity-50'}`}
           title="コピー"
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={copied ? '#4ade80' : '#888'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
         </button>
-        {copied && <span style={{ position: 'absolute', top: '8px', right: '40px', color: '#4ade80', fontSize: '0.95em' }}>コピー！</span>}
+        {copied && <span className="absolute top-2 right-11 text-green-500 text-sm">コピー！</span>}
       </div>
     </div>
   )
@@ -650,45 +541,44 @@ function App() {
     }
   }
 
-  // レイアウトモードに応じたスタイルを取得
-  const getLayoutStyle = () => {
+  // レイアウトモードに応じたクラス名を取得
+  const getLayoutClasses = () => {
     switch (layoutMode) {
       case 'horizontal':
         return {
-          container: { display: 'flex', flexDirection: 'row', gap: '2rem', alignItems: 'flex-start', justifyContent: 'center', flexWrap: 'wrap' },
-          transcription: { flex: '1 1 300px', maxWidth: '500px' },
-          github: { flex: '1 1 300px', maxWidth: '400px', marginTop: '0' }
+          container: 'flex flex-row gap-8 items-start justify-center flex-wrap',
+          transcription: 'flex-1 min-w-[300px] max-w-[500px]',
+          github: 'flex-1 min-w-[300px] max-w-[400px] mt-0'
         };
       case 'grid':
         return {
-          container: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem', width: '100%', maxWidth: '1200px', padding: '0 2rem' },
-          transcription: { marginTop: '0' },
-          github: { marginTop: '0' }
+          container: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 w-full max-w-7xl px-8',
+          transcription: 'mt-0',
+          github: 'mt-0'
         };
       case 'sidebar':
         return {
-          container: { display: 'flex', flexDirection: 'row', gap: '2rem', alignItems: 'flex-start', width: '100%', maxWidth: '1400px', padding: '0 2rem' },
-          transcription: { flex: '2', maxWidth: '600px' },
-          github: { flex: '1', maxWidth: '400px', marginTop: '0', position: 'sticky', top: '20px' }
+          container: 'flex flex-row gap-8 items-start w-full max-w-7xl px-8',
+          transcription: 'flex-[2] max-w-[600px]',
+          github: 'flex-1 max-w-[400px] mt-0 sticky top-5'
         };
       default: // vertical
         return {
-          container: { display: 'flex', flexDirection: 'column', alignItems: 'center' },
-          transcription: { marginTop: '0' },
-          github: { marginTop: '2.5rem' }
+          container: 'flex flex-col items-center',
+          transcription: 'mt-0',
+          github: 'mt-10'
         };
     }
   };
 
-  const layoutStyle = getLayoutStyle();
+  const layoutClasses = getLayoutClasses();
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', background: '#f8fafc', padding: '2rem 0' }}>
-      <LayoutSettings layoutMode={layoutMode} onLayoutChange={handleLayoutChange} />
-      <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#222' }}>vocal-zettelkasten</h1>
-      <p style={{ color: '#555', marginTop: '1rem' }}>音声でノートを作成・管理するZettelkastenアプリ</p>
-      <div style={{ marginTop: '2rem', ...layoutStyle.container }}>
-        <div style={layoutStyle.transcription}>
+    <div className="min-h-screen flex flex-col justify-center items-center bg-slate-50 py-8">
+      <h1 className="text-4xl font-bold text-gray-800 mb-4">vocal-zettelkasten</h1>
+      <p className="text-gray-600">音声でノートを作成・管理するZettelkastenアプリ</p>
+      <div className={`mt-8 ${layoutClasses.container}`}>
+        <div className={`${layoutClasses.transcription} bg-white rounded-xl p-6 border-2 border-gray-200 shadow-md hover:shadow-lg transition-shadow`}>
           <TranscriptionInput
             transcript={transcript}
             setTranscript={setTranscript}
@@ -699,7 +589,7 @@ function App() {
             copied={copied}
           />
         </div>
-        <div style={layoutStyle.github}>
+        <div className={`${layoutClasses.github} bg-white rounded-xl p-6 border-2 border-gray-200 shadow-md hover:shadow-lg transition-shadow`}>
           <GithubPush transcript={transcript} />
         </div>
       </div>
